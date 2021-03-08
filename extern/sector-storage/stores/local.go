@@ -16,6 +16,11 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-storage/storage"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+
 	"github.com/filecoin-project/lotus/extern/sector-storage/fsutil"
 	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
 )
@@ -275,6 +280,26 @@ func (st *Local) Redeclare(ctx context.Context) error {
 }
 
 func (st *Local) declareSectorsFromOss(ctx context.Context, info StorageOSSInfo, id ID, primary bool) error {
+	sess, err := session.NewSession(&aws.Config{
+		Credentials:      credentials.NewStaticCredentials(info.AccessKey, info.SecretKey, ""),
+		Endpoint:         aws.String(info.URL),
+		Region:           aws.String("us-west-2"),
+		DisableSSL:       aws.Bool(true),
+		S3ForcePathStyle: aws.Bool(false),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	svc := s3.New(sess)
+	buckets, err := svc.ListBuckets(nil)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("buckets %v of %v", info, buckets)
+
 	return nil
 }
 
