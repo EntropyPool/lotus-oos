@@ -42,6 +42,9 @@ type LocalStorageMeta struct {
 
 	// Finalized sectors that will be proved over time will be stored here
 	CanStore bool
+
+	Oss     bool
+	OssInfo StorageOSSInfo
 }
 
 // StorageConfig .lotusstorage/storage.json
@@ -179,13 +182,21 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 		Weight:   meta.Weight,
 		CanSeal:  meta.CanSeal,
 		CanStore: meta.CanStore,
+		Oss:      meta.Oss,
+		OssInfo:  meta.OssInfo,
 	}, fst)
 	if err != nil {
 		return xerrors.Errorf("declaring storage in index: %w", err)
 	}
 
-	if err := st.declareSectors(ctx, p, meta.ID, meta.CanStore); err != nil {
-		return err
+	if meta.Oss {
+		err = st.declareSectorsFromOss(ctx, meta.OssInfo, meta.ID, meta.OssInfo.CanWrite)
+	} else {
+		err = st.declareSectors(ctx, p, meta.ID, meta.CanStore)
+	}
+
+	if err != nil {
+		return xerrors.Errorf("open path: %w", err)
 	}
 
 	st.paths[meta.ID] = out
@@ -242,16 +253,28 @@ func (st *Local) Redeclare(ctx context.Context) error {
 			Weight:   meta.Weight,
 			CanSeal:  meta.CanSeal,
 			CanStore: meta.CanStore,
+			Oss:      meta.Oss,
+			OssInfo:  meta.OssInfo,
 		}, fst)
 		if err != nil {
 			return xerrors.Errorf("redeclaring storage in index: %w", err)
 		}
 
-		if err := st.declareSectors(ctx, p.local, meta.ID, meta.CanStore); err != nil {
+		if meta.Oss {
+			err = st.declareSectorsFromOss(ctx, meta.OssInfo, id, meta.OssInfo.CanWrite)
+		} else {
+			err = st.declareSectors(ctx, p.local, meta.ID, meta.CanStore)
+		}
+
+		if err != nil {
 			return xerrors.Errorf("redeclaring sectors: %w", err)
 		}
 	}
 
+	return nil
+}
+
+func (st *Local) declareSectorsFromOss(ctx context.Context, info StorageOSSInfo, id ID, primary bool) error {
 	return nil
 }
 
@@ -616,7 +639,7 @@ func (st *Local) MoveStorage(ctx context.Context, s storage.SectorRef, types sto
 		}
 
 		if sst.ID == dst.ID {
-			log.Debugf("not moving %v(%d); src and dest are the same", s, fileType)
+			log.Infof("not moving %v(%d); src and dest are the same", s, fileType)
 			continue
 		}
 

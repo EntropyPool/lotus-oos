@@ -88,6 +88,26 @@ over time
 			Name:  "store",
 			Usage: "(for init) use path for long-term storage",
 		},
+		&cli.BoolFlag{
+			Name:  "oss",
+			Usage: "(for init) the path is from object storage service",
+		},
+		&cli.StringFlag{
+			Name:  "oss-url",
+			Usage: "(for init) url used to access object storage service",
+		},
+		&cli.StringFlag{
+			Name:  "oss-access-key",
+			Usage: "(for init) access key used to access object storage service",
+		},
+		&cli.StringFlag{
+			Name:  "oss-secret-key",
+			Usage: "(for init) secret key used to access object storage service",
+		},
+		&cli.StringFlag{
+			Name:  "oss-bucket-name",
+			Usage: "(for init) bucket name of object storage service",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		nodeApi, closer, err := lcli.GetStorageMinerAPI(cctx)
@@ -126,6 +146,17 @@ over time
 				Weight:   cctx.Uint64("weight"),
 				CanSeal:  cctx.Bool("seal"),
 				CanStore: cctx.Bool("store"),
+				Oss:      cctx.Bool("oss"),
+			}
+
+			if cctx.Bool("oss") {
+				cfg.OssInfo = stores.StorageOSSInfo{
+					CanWrite:   cctx.Bool("store"),
+					URL:        cctx.String("oss-url"),
+					AccessKey:  cctx.String("oss-access-key"),
+					SecretKey:  cctx.String("oss-secret-key"),
+					BucketName: cctx.String("oss-bucket-name"),
+				}
 			}
 
 			if !(cfg.CanStore || cfg.CanSeal) {
