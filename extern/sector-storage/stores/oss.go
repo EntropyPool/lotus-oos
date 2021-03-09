@@ -1,6 +1,7 @@
 package stores
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -19,9 +20,14 @@ type OSSInfo struct {
 type StorageOSSInfo = OSSInfo
 
 type OSSClient struct {
-	s3Client  *s3.S3
-	s3Session *session.Session
-	s3Info    OSSInfo
+	s3Client   *s3.S3
+	s3Session  *session.Session
+	s3Info     OSSInfo
+	bucketName string
+}
+
+func (info *OSSInfo) MinerBucketName() string {
+	return fmt.Sprintf("%s-%s", info.BucketName, info.Prefix)
 }
 
 func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
@@ -30,7 +36,7 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 		Endpoint:         aws.String(info.URL),
 		Region:           aws.String("us-west-2"),
 		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(false),
+		S3ForcePathStyle: aws.Bool(true),
 	})
 
 	if err != nil {
@@ -44,18 +50,24 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 		return nil, err
 	}
 
+	log.Infof("buckets from %v", info.URL)
+	log.Infof("%v", buckets)
+
 	bucketExists := false
+	bucketName := info.MinerBucketName()
+
 	for _, bucket := range buckets.Buckets {
-		if *bucket.Name == info.BucketName {
+		if *bucket.Name == bucketName {
 			bucketExists = true
 			break
 		}
 	}
 
 	ossCli := &OSSClient{
-		s3Client:  cli,
-		s3Session: sess,
-		s3Info:    info,
+		s3Client:   cli,
+		s3Session:  sess,
+		s3Info:     info,
+		bucketName: bucketName,
 	}
 	if !bucketExists {
 		err = ossCli.CreateBucket()
@@ -69,14 +81,14 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 
 func (oss *OSSClient) CreateBucket() error {
 	_, err := oss.s3Client.CreateBucket(&s3.CreateBucketInput{
-		Bucket: aws.String(oss.s3Info.BucketName),
+		Bucket: aws.String(oss.bucketName),
 	})
 	if err != nil {
 		return err
 	}
 
 	err = oss.s3Client.WaitUntilBucketExists(&s3.HeadBucketInput{
-		Bucket: aws.String(oss.s3Info.BucketName),
+		Bucket: aws.String(oss.bucketName),
 	})
 	if err != nil {
 		return err
