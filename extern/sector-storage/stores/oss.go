@@ -12,6 +12,7 @@ type OSSInfo struct {
 	AccessKey  string
 	SecretKey  string
 	BucketName string
+	Prefix     string
 	CanWrite   bool
 }
 

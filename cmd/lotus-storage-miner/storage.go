@@ -167,7 +167,8 @@ over time
 					URL:        cctx.String("oss-url"),
 					AccessKey:  cctx.String("oss-access-key"),
 					SecretKey:  cctx.String("oss-secret-key"),
-					BucketName: fmt.Sprintf("%s-%s", cctx.String("oss-bucket-name"), miner),
+					BucketName: cctx.String("oss-bucket-name"),
+					Prefix:     fmt.Sprintf("%v", miner),
 				}
 			}
 
