@@ -6,6 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"os"
 )
 
 type OSSInfo struct {
@@ -20,11 +22,13 @@ type OSSInfo struct {
 type StorageOSSInfo = OSSInfo
 
 type OSSClient struct {
-	s3Client    *s3.S3
-	s3Session   *session.Session
-	s3Info      OSSInfo
-	proofBucket string
-	dataBucket  string
+	s3Client     *s3.S3
+	s3Uploader   *s3manager.Uploader
+	s3Downloader *s3manager.Downloader
+	s3Session    *session.Session
+	s3Info       OSSInfo
+	proofBucket  string
+	dataBucket   string
 }
 
 type OSSObject struct {
@@ -80,10 +84,7 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 	}
 
 	if !bucketExists {
-		err = ossCli.createBucket(ossCli.proofBucket)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("bucket %v is not exists", ossCli.proofBucket)
 	}
 
 	bucketExists = false
@@ -97,11 +98,11 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 	}
 
 	if !bucketExists {
-		err = ossCli.createBucket(ossCli.dataBucket)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("bucket %v is not exists", ossCli.dataBucket)
 	}
+
+	ossCli.s3Uploader = s3manager.NewUploader(ossCli.s3Session)
+	ossCli.s3Downloader = s3manager.NewDownloader(ossCli.s3Session)
 
 	return ossCli, nil
 }
@@ -124,11 +125,22 @@ func (oss *OSSClient) createBucket(bucketName string) error {
 	return nil
 }
 
-func (oss *OSSClient) ListObjects(prefix string) ([]OSSObject, error) {
-	bucketName := oss.dataBucket
+func (oss *OSSClient) bucketNameByPrefix(prefix string) (string, error) {
 	switch prefix {
 	case "cache":
-		bucketName = oss.proofBucket
+		return oss.proofBucket, nil
+	case "sealed":
+		return oss.dataBucket, nil
+	case "unsealed":
+		return oss.dataBucket, nil
+	}
+	return "", fmt.Errorf("invalid prefix value %v", prefix)
+}
+
+func (oss *OSSClient) ListObjects(prefix string) ([]OSSObject, error) {
+	bucketName, err := oss.bucketNameByPrefix(prefix)
+	if err != nil {
+		return nil, err
 	}
 
 	objs, err := oss.s3Client.ListObjects(&s3.ListObjectsInput{
@@ -142,4 +154,29 @@ func (oss *OSSClient) ListObjects(prefix string) ([]OSSObject, error) {
 	log.Infof("%v", objs)
 
 	return nil, nil
+}
+
+func (oss *OSSClient) UploadObject(prefix string, objName string, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	bucketName, err := oss.bucketNameByPrefix(prefix)
+	if err != nil {
+		return err
+	}
+
+	key := fmt.Sprintf("%v/%v", prefix, objName)
+
+	_, err = oss.s3Uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+		Body:   file,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
