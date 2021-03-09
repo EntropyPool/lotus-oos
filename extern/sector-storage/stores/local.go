@@ -202,7 +202,7 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 		}
 		out.ossClient = cli
 		out.ossInfo = meta.OssInfo
-		err = st.declareSectorsFromOss(ctx, cli, meta.ID, meta.OssInfo.CanWrite)
+		err = st.declareSectorsFromOss(ctx, cli, meta.ID, meta.OssInfo.CanWrite, p)
 	} else {
 		err = st.declareSectors(ctx, p, meta.ID, meta.CanStore)
 	}
@@ -279,7 +279,7 @@ func (st *Local) Redeclare(ctx context.Context) error {
 			}
 			p.ossClient = cli
 			p.ossInfo = meta.OssInfo
-			err = st.declareSectorsFromOss(ctx, cli, id, meta.OssInfo.CanWrite)
+			err = st.declareSectorsFromOss(ctx, cli, id, meta.OssInfo.CanWrite, p.local)
 		} else {
 			err = st.declareSectors(ctx, p.local, meta.ID, meta.CanStore)
 		}
@@ -292,8 +292,10 @@ func (st *Local) Redeclare(ctx context.Context) error {
 	return nil
 }
 
-func (st *Local) declareSectorsFromOss(ctx context.Context, cli *OSSClient, id ID, primary bool) error {
+func (st *Local) declareSectorsFromOss(ctx context.Context, cli *OSSClient, id ID, primary bool, p string) error {
 	for _, t := range storiface.PathTypes {
+		os.MkdirAll(filepath.Join(p, t.String()), 0755) // nolint
+
 		ents, err := cli.ListSectors(t.String())
 		if err != nil {
 			return xerrors.Errorf("open path '%s': %w", t, err)
