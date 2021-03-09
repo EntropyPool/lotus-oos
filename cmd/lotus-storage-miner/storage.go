@@ -155,20 +155,13 @@ over time
 					return err
 				}
 
-				mid, err := address.IDFromAddress(ma)
-				if err != nil {
-					return err
-				}
-
-				miner := abi.ActorID(mid)
-
 				cfg.OssInfo = stores.StorageOSSInfo{
 					CanWrite:   cctx.Bool("store"),
 					URL:        cctx.String("oss-url"),
 					AccessKey:  cctx.String("oss-access-key"),
 					SecretKey:  cctx.String("oss-secret-key"),
 					BucketName: cctx.String("oss-bucket-name"),
-					Prefix:     fmt.Sprintf("%v", miner),
+					Prefix:     fmt.Sprintf("%v", ma),
 				}
 			}
 
