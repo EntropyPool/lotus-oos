@@ -16,11 +16,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-storage/storage"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-
 	"github.com/filecoin-project/lotus/extern/sector-storage/fsutil"
 	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
 )
@@ -89,6 +84,9 @@ type path struct {
 
 	reserved     int64
 	reservations map[abi.SectorID]storiface.SectorFileType
+
+	oss       bool
+	ossClient *OSSClient
 }
 
 func (p *path) stat(ls LocalStorage) (fsutil.FsStat, error) {
@@ -174,6 +172,8 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 
 		reserved:     0,
 		reservations: map[abi.SectorID]storiface.SectorFileType{},
+
+		oss: meta.Oss,
 	}
 
 	fst, err := out.stat(st.localStorage)
@@ -195,7 +195,12 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 	}
 
 	if meta.Oss {
-		err = st.declareSectorsFromOss(ctx, meta.OssInfo, meta.ID, meta.OssInfo.CanWrite)
+		cli, err := NewOSSClient(meta.OssInfo)
+		if err != nil {
+			return xerrors.Errorf("create oss client: %w", err)
+		}
+		out.ossClient = cli
+		err = st.declareSectorsFromOss(ctx, cli, meta.ID, meta.OssInfo.CanWrite)
 	} else {
 		err = st.declareSectors(ctx, p, meta.ID, meta.CanStore)
 	}
@@ -266,7 +271,12 @@ func (st *Local) Redeclare(ctx context.Context) error {
 		}
 
 		if meta.Oss {
-			err = st.declareSectorsFromOss(ctx, meta.OssInfo, id, meta.OssInfo.CanWrite)
+			cli, err := NewOSSClient(meta.OssInfo)
+			if err != nil {
+				return xerrors.Errorf("create oss client: %w", err)
+			}
+			p.ossClient = cli
+			err = st.declareSectorsFromOss(ctx, cli, id, meta.OssInfo.CanWrite)
 		} else {
 			err = st.declareSectors(ctx, p.local, meta.ID, meta.CanStore)
 		}
@@ -279,27 +289,7 @@ func (st *Local) Redeclare(ctx context.Context) error {
 	return nil
 }
 
-func (st *Local) declareSectorsFromOss(ctx context.Context, info StorageOSSInfo, id ID, primary bool) error {
-	sess, err := session.NewSession(&aws.Config{
-		Credentials:      credentials.NewStaticCredentials(info.AccessKey, info.SecretKey, ""),
-		Endpoint:         aws.String(info.URL),
-		Region:           aws.String("us-west-2"),
-		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(false),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	svc := s3.New(sess)
-	buckets, err := svc.ListBuckets(nil)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("buckets %v of %v", info, buckets)
-
+func (st *Local) declareSectorsFromOss(ctx context.Context, cli *OSSClient, id ID, primary bool) error {
 	return nil
 }
 
