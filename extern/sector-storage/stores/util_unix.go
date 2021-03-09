@@ -71,5 +71,12 @@ func upload(from string, prefix string, objName string, cli *OSSClient) error {
 		}
 	}
 
+	var errOut bytes.Buffer
+	cmd := exec.Command("/usr/bin/env", "rm", "-rf", from) // nolint
+	cmd.Stderr = &errOut
+	if err := cmd.Run(); err != nil {
+		return xerrors.Errorf("exec mv (stderr: %s): %w", strings.TrimSpace(errOut.String()), err)
+	}
+
 	return nil
 }
