@@ -25,14 +25,6 @@ var SkippedHeartbeatThresh = HeartbeatInterval * 5
 //  filesystem, local or networked / shared by multiple machines
 type ID string
 
-type StorageOSSInfo struct {
-	URL        string
-	AccessKey  string
-	SecretKey  string
-	BucketName string
-	CanWrite   bool
-}
-
 type StorageInfo struct {
 	ID     ID
 	URLs   []string // TODO: Support non-http transports
