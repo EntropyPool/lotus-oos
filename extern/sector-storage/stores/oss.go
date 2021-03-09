@@ -7,7 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"golang.org/x/xerrors"
 	"os"
+	"strings"
 )
 
 type OSSInfo struct {
@@ -31,8 +33,15 @@ type OSSClient struct {
 	dataBucket   string
 }
 
-type OSSObject struct {
+type OSSSector struct {
+	name string
 }
+
+func (obj *OSSSector) Name() string {
+	return obj.name
+}
+
+const ossKeySeparator = "/"
 
 func (info *OSSInfo) ProofBucket() string {
 	return fmt.Sprintf("%s-%s-proof", info.BucketName, info.Prefix)
@@ -70,8 +79,8 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 		return nil, err
 	}
 
-	log.Infof("buckets from %v", info.URL)
-	log.Infof("%v", buckets)
+	log.Debugf("buckets from %v", info.URL)
+	log.Debugf("%v", buckets)
 
 	ossCli := &OSSClient{
 		s3Client:    cli,
@@ -142,26 +151,43 @@ func (oss *OSSClient) bucketNameByPrefix(prefix string) (string, error) {
 	case "unsealed":
 		return oss.dataBucket, nil
 	}
-	return "", fmt.Errorf("invalid prefix value %v", prefix)
+	return "", xerrors.Errorf("invalid prefix value %v", prefix)
 }
 
-func (oss *OSSClient) ListObjects(prefix string) ([]OSSObject, error) {
+func (oss *OSSClient) ListSectors(prefix string) ([]OSSSector, error) {
 	bucketName, err := oss.bucketNameByPrefix(prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	objs, err := oss.s3Client.ListObjects(&s3.ListObjectsInput{
+	maxKeys := int64(10000000)
+	objs, err := oss.s3Client.ListObjects((&s3.ListObjectsInput{
 		Bucket: aws.String(bucketName),
 		Prefix: aws.String(prefix),
-	})
+	}).SetMaxKeys(maxKeys))
 	if err != nil {
 		return nil, err
 	}
 
-	log.Infof("%v", objs)
+	ossObjs := []OSSSector{}
+	sectorFind := map[string]struct{}{}
 
-	return nil, nil
+	for _, obj := range objs.Contents {
+		keys := strings.Split(*obj.Key, ossKeySeparator)
+		if len(keys) < 2 {
+			return nil, xerrors.Errorf("error key %v from bucket %v", obj.Key, bucketName)
+		}
+		sectorName := keys[1]
+		if _, ok := sectorFind[sectorName]; ok {
+			continue
+		}
+		ossObjs = append(ossObjs, OSSSector{
+			name: sectorName,
+		})
+		sectorFind[sectorName] = struct{}{}
+	}
+
+	return ossObjs, nil
 }
 
 func (oss *OSSClient) UploadObject(prefix string, objName string, path string) error {
@@ -176,7 +202,7 @@ func (oss *OSSClient) UploadObject(prefix string, objName string, path string) e
 		return err
 	}
 
-	key := fmt.Sprintf("%v/%v", prefix, objName)
+	key := fmt.Sprintf("%v%v%v", prefix, ossKeySeparator, objName)
 
 	_, err = oss.s3Uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),

@@ -196,9 +196,9 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 	}
 
 	if meta.Oss {
-		cli, err := NewOSSClient(meta.OssInfo)
-		if err != nil {
-			return xerrors.Errorf("create oss client: %w", err)
+		cli, ossErr := NewOSSClient(meta.OssInfo)
+		if ossErr != nil {
+			return xerrors.Errorf("create oss client: %w", ossErr)
 		}
 		out.ossClient = cli
 		out.ossInfo = meta.OssInfo
@@ -273,9 +273,9 @@ func (st *Local) Redeclare(ctx context.Context) error {
 		}
 
 		if meta.Oss {
-			cli, err := NewOSSClient(meta.OssInfo)
-			if err != nil {
-				return xerrors.Errorf("create oss client: %w", err)
+			cli, ossErr := NewOSSClient(meta.OssInfo)
+			if ossErr != nil {
+				return xerrors.Errorf("create oss client: %w", ossErr)
 			}
 			p.ossClient = cli
 			p.ossInfo = meta.OssInfo
@@ -294,11 +294,21 @@ func (st *Local) Redeclare(ctx context.Context) error {
 
 func (st *Local) declareSectorsFromOss(ctx context.Context, cli *OSSClient, id ID, primary bool) error {
 	for _, t := range storiface.PathTypes {
-		ents, err := cli.ListObjects(string(t))
+		ents, err := cli.ListSectors(t.String())
 		if err != nil {
 			return xerrors.Errorf("open path '%s': %w", t, err)
 		}
-		log.Infof("%v", ents)
+
+		for _, ent := range ents {
+			sid, err := storiface.ParseSectorID(ent.Name())
+			if err != nil {
+				return xerrors.Errorf("parse sector id %s: %w", ent.Name(), err)
+			}
+
+			if err := st.index.StorageDeclareSector(ctx, id, sid, t, primary); err != nil {
+				return xerrors.Errorf("declare sector %d(t:%d) -> %s: %w", sid, t, id, err)
+			}
+		}
 	}
 	return nil
 }
