@@ -290,6 +290,13 @@ func (st *Local) Redeclare(ctx context.Context) error {
 }
 
 func (st *Local) declareSectorsFromOss(ctx context.Context, cli *OSSClient, id ID, primary bool) error {
+	for _, t := range storiface.PathTypes {
+		ents, err := cli.ListObjects(string(t))
+		if err != nil {
+			return xerrors.Errorf("open path '%s': %w", t, err)
+		}
+		log.Infof("%v", ents)
+	}
 	return nil
 }
 

@@ -20,14 +20,22 @@ type OSSInfo struct {
 type StorageOSSInfo = OSSInfo
 
 type OSSClient struct {
-	s3Client   *s3.S3
-	s3Session  *session.Session
-	s3Info     OSSInfo
-	bucketName string
+	s3Client    *s3.S3
+	s3Session   *session.Session
+	s3Info      OSSInfo
+	proofBucket string
+	dataBucket  string
 }
 
-func (info *OSSInfo) MinerBucketName() string {
-	return fmt.Sprintf("%s-%s", info.BucketName, info.Prefix)
+type OSSObject struct {
+}
+
+func (info *OSSInfo) ProofBucket() string {
+	return fmt.Sprintf("%s-%s-proof", info.BucketName, info.Prefix)
+}
+
+func (info *OSSInfo) DataBucket() string {
+	return fmt.Sprintf("%s-%s-data", info.BucketName, info.Prefix)
 }
 
 func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
@@ -53,8 +61,16 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 	log.Infof("buckets from %v", info.URL)
 	log.Infof("%v", buckets)
 
+	ossCli := &OSSClient{
+		s3Client:    cli,
+		s3Session:   sess,
+		s3Info:      info,
+		proofBucket: info.ProofBucket(),
+		dataBucket:  info.DataBucket(),
+	}
+
 	bucketExists := false
-	bucketName := info.MinerBucketName()
+	bucketName := info.ProofBucket()
 
 	for _, bucket := range buckets.Buckets {
 		if *bucket.Name == bucketName {
@@ -63,14 +79,25 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 		}
 	}
 
-	ossCli := &OSSClient{
-		s3Client:   cli,
-		s3Session:  sess,
-		s3Info:     info,
-		bucketName: bucketName,
-	}
 	if !bucketExists {
-		err = ossCli.CreateBucket()
+		err = ossCli.createBucket(ossCli.proofBucket)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bucketExists = false
+	bucketName = info.DataBucket()
+
+	for _, bucket := range buckets.Buckets {
+		if *bucket.Name == bucketName {
+			bucketExists = true
+			break
+		}
+	}
+
+	if !bucketExists {
+		err = ossCli.createBucket(ossCli.dataBucket)
 		if err != nil {
 			return nil, err
 		}
@@ -79,20 +106,40 @@ func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 	return ossCli, nil
 }
 
-func (oss *OSSClient) CreateBucket() error {
+func (oss *OSSClient) createBucket(bucketName string) error {
 	_, err := oss.s3Client.CreateBucket(&s3.CreateBucketInput{
-		Bucket: aws.String(oss.bucketName),
+		Bucket: aws.String(bucketName),
 	})
 	if err != nil {
 		return err
 	}
 
 	err = oss.s3Client.WaitUntilBucketExists(&s3.HeadBucketInput{
-		Bucket: aws.String(oss.bucketName),
+		Bucket: aws.String(bucketName),
 	})
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (oss *OSSClient) ListObjects(prefix string) ([]OSSObject, error) {
+	bucketName := oss.dataBucket
+	switch prefix {
+	case "cache":
+		bucketName = oss.proofBucket
+	}
+
+	objs, err := oss.s3Client.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(prefix),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("%v", objs)
+
+	return nil, nil
 }
