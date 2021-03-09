@@ -686,7 +686,7 @@ func (st *Local) MoveStorage(ctx context.Context, s storage.SectorRef, types sto
 		if dst.Oss {
 			for _, p := range st.paths {
 				if p.oss && p.ossInfo.Equal(&dst.OssInfo) && dst.CanStore {
-					moveErr = upload(storiface.PathByType(src, fileType), fileType.String(), filepath.Join(fileType.String(), storiface.SectorName(s.ID)), p.ossClient)
+					moveErr = upload(storiface.PathByType(src, fileType), fileType.String(), storiface.SectorName(s.ID), p.ossClient)
 					ossUploaded = true
 					break
 				}
