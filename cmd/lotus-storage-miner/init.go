@@ -106,6 +106,7 @@ var initCmd = &cli.Command{
 		&cli.BoolFlag{
 			Name:  "no-local-storage",
 			Usage: "don't use storageminer repo for sector storage",
+			Value: true,
 		},
 		&cli.StringFlag{
 			Name:  "gas-premium",

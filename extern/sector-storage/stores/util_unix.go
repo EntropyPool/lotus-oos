@@ -41,3 +41,8 @@ func move(from, to string) error {
 
 	return nil
 }
+
+func upload(from string, prefix string, cli *OSSClient) error {
+	log.Infof("upload %v / %v", from, prefix)
+	return nil
+}

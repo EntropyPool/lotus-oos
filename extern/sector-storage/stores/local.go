@@ -86,6 +86,7 @@ type path struct {
 	reservations map[abi.SectorID]storiface.SectorFileType
 
 	oss       bool
+	ossInfo   StorageOSSInfo
 	ossClient *OSSClient
 }
 
@@ -200,6 +201,7 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 			return xerrors.Errorf("create oss client: %w", err)
 		}
 		out.ossClient = cli
+		out.ossInfo = meta.OssInfo
 		err = st.declareSectorsFromOss(ctx, cli, meta.ID, meta.OssInfo.CanWrite)
 	} else {
 		err = st.declareSectors(ctx, p, meta.ID, meta.CanStore)
@@ -276,6 +278,7 @@ func (st *Local) Redeclare(ctx context.Context) error {
 				return xerrors.Errorf("create oss client: %w", err)
 			}
 			p.ossClient = cli
+			p.ossInfo = meta.OssInfo
 			err = st.declareSectorsFromOss(ctx, cli, id, meta.OssInfo.CanWrite)
 		} else {
 			err = st.declareSectors(ctx, p.local, meta.ID, meta.CanStore)
@@ -660,29 +663,50 @@ func (st *Local) MoveStorage(ctx context.Context, s storage.SectorRef, types sto
 			return xerrors.Errorf("failed to get source storage info: %w", err)
 		}
 
-		if sst.ID == dst.ID {
-			log.Infof("not moving %v(%d); src and dest are the same", s, fileType)
-			continue
+		if !dst.Oss {
+			if sst.ID == dst.ID {
+				log.Infof("not moving %v(%d / %v); src and dest are the same", s, fileType, src)
+				continue
+			}
+			if sst.CanStore {
+				log.Debugf("not moving %v(%d / %v); source supports storage", s, fileType, src)
+				continue
+			}
 		}
 
-		if sst.CanStore {
-			log.Debugf("not moving %v(%d); source supports storage", s, fileType)
-			continue
-		}
-
-		log.Debugf("moving %v(%d) to storage: %s(se:%t; st:%t) -> %s(se:%t; st:%t)", s, fileType, sst.ID, sst.CanSeal, sst.CanStore, dst.ID, dst.CanSeal, dst.CanStore)
+		log.Infof("moving %v(%d) to storage: %s(se:%t; st:%t) -> %s(se:%t; st:%t)", s, fileType, sst.ID, sst.CanSeal, sst.CanStore, dst.ID, dst.CanSeal, dst.CanStore)
 
 		if err := st.index.StorageDropSector(ctx, ID(storiface.PathByType(srcIds, fileType)), s.ID, fileType); err != nil {
 			return xerrors.Errorf("dropping source sector from index: %w", err)
 		}
 
-		if err := move(storiface.PathByType(src, fileType), storiface.PathByType(dest, fileType)); err != nil {
-			// TODO: attempt some recovery (check if src is still there, re-declare)
-			return xerrors.Errorf("moving sector %v(%d): %w", s, fileType, err)
+		ossUploaded := false
+		var moveErr error
+
+		if dst.Oss {
+			for _, p := range st.paths {
+				if p.oss && p.ossInfo.Equal(&dst.OssInfo) && dst.CanStore {
+					moveErr = upload(storiface.PathByType(src, fileType), fileType.String(), p.ossClient)
+					ossUploaded = true
+					break
+				}
+			}
+			if !ossUploaded {
+				moveErr = xerrors.Errorf("cannot find suitable uploader")
+			}
+		} else {
+			if err := move(storiface.PathByType(src, fileType), storiface.PathByType(dest, fileType)); err != nil {
+				// TODO: attempt some recovery (check if src is still there, re-declare)
+				moveErr = xerrors.Errorf("moving sector %v(%d): %w", s, fileType, err)
+			}
 		}
 
 		if err := st.index.StorageDeclareSector(ctx, ID(storiface.PathByType(destIds, fileType)), s.ID, fileType, true); err != nil {
 			return xerrors.Errorf("declare sector %d(t:%d) -> %s: %w", s, fileType, ID(storiface.PathByType(destIds, fileType)), err)
+		}
+
+		if moveErr != nil {
+			return moveErr
 		}
 	}
 

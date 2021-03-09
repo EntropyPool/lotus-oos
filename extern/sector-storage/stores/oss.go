@@ -42,6 +42,14 @@ func (info *OSSInfo) DataBucket() string {
 	return fmt.Sprintf("%s-%s-data", info.BucketName, info.Prefix)
 }
 
+func (info *OSSInfo) Equal(another *OSSInfo) bool {
+	return info.URL == another.URL &&
+		info.AccessKey == another.AccessKey &&
+		info.SecretKey == another.SecretKey &&
+		info.BucketName == another.BucketName &&
+		info.Prefix == another.Prefix
+}
+
 func NewOSSClient(info StorageOSSInfo) (*OSSClient, error) {
 	sess, err := session.NewSession(&aws.Config{
 		Credentials:      credentials.NewStaticCredentials(info.AccessKey, info.SecretKey, ""),
