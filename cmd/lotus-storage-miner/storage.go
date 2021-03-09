@@ -155,6 +155,8 @@ over time
 					return err
 				}
 
+				cfg.Weight = 100
+
 				cfg.OssInfo = stores.StorageOSSInfo{
 					CanWrite:   cctx.Bool("store"),
 					URL:        cctx.String("oss-url"),
