@@ -495,6 +495,7 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 				ossInfo.AccessKey = p.ossInfo.AccessKey
 				ossInfo.SecretKey = p.ossInfo.SecretKey
 				ossInfo.LandedDir = p.local
+				ossInfo.SectorName = storiface.SectorName(sid.ID)
 			}
 
 			storiface.SetPathExtByType(&out, fileType, p.oss, p.ossClient, ossInfo)
@@ -565,6 +566,7 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 			ossInfo.AccessKey = bestPath.ossInfo.AccessKey
 			ossInfo.SecretKey = bestPath.ossInfo.SecretKey
 			ossInfo.LandedDir = bestPath.local
+			ossInfo.SectorName = storiface.SectorName(sid.ID)
 		}
 
 		storiface.SetPathExtByType(&storageIDs, fileType, bestPath.oss, bestPath.ossClient, ossInfo)

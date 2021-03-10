@@ -74,17 +74,33 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 			}
 			ossToCheck := []ossCheck{}
 
+			sealedSectorPathInfo := ffi.PrivateSectorPathInfo{}
+
 			if sealedSectorPath.Oss {
 				ossToCheck = append(ossToCheck, ossCheck{sectorPath: sealedSectorPath})
+				sealedSectorPathInfo.Url = sealedSectorPath.OssInfo.URL
+				sealedSectorPathInfo.AccessKey = sealedSectorPath.OssInfo.AccessKey
+				sealedSectorPathInfo.SecretKey = sealedSectorPath.OssInfo.SecretKey
+				sealedSectorPathInfo.LandedDir = sealedSectorPath.OssInfo.LandedDir
+				sealedSectorPathInfo.BucketName = sealedSectorPath.OssInfo.BucketName
+				sealedSectorPathInfo.SectorName = sealedSectorPath.OssInfo.SectorName
 			} else {
 				localToCheck[sealedPath] = 1
 			}
+
+			cacheSectorPathInfo := ffi.PrivateSectorPathInfo{}
 
 			if cacheSectorPath.Oss {
 				ossToCheck = append(ossToCheck, ossCheck{
 					sectorPath:  cacheSectorPath,
 					sectorFiles: getCacheFilesForSectorSize(cachePath, ssize),
 				})
+				cacheSectorPathInfo.Url = cacheSectorPath.OssInfo.URL
+				cacheSectorPathInfo.AccessKey = cacheSectorPath.OssInfo.AccessKey
+				cacheSectorPathInfo.SecretKey = cacheSectorPath.OssInfo.SecretKey
+				cacheSectorPathInfo.LandedDir = cacheSectorPath.OssInfo.LandedDir
+				cacheSectorPathInfo.BucketName = cacheSectorPath.OssInfo.BucketName
+				cacheSectorPathInfo.SectorName = cacheSectorPath.OssInfo.SectorName
 			} else {
 				localToCheck[filepath.Join(cachePath, "t_aux")] = 0
 				localToCheck[filepath.Join(cachePath, "p_aux")] = 0
@@ -144,11 +160,13 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 						SectorNumber: sector.ID.Number,
 						SealedCID:    commr,
 					},
-					CacheDirPath:     storiface.PathByType(lp, storiface.FTCache),
-					CacheInOss:       cacheSectorPath.Oss,
-					PoStProofType:    wpp,
-					SealedSectorPath: storiface.PathByType(lp, storiface.FTSealed),
-					SealedInOss:      sealedSectorPath.Oss,
+					CacheDirPath:         storiface.PathByType(lp, storiface.FTCache),
+					CacheInOss:           cacheSectorPath.Oss,
+					CacheSectorPathInfo:  cacheSectorPathInfo,
+					PoStProofType:        wpp,
+					SealedSectorPath:     storiface.PathByType(lp, storiface.FTSealed),
+					SealedInOss:          sealedSectorPath.Oss,
+					SealedSectorPathInfo: sealedSectorPathInfo,
 				}, ch.Challenges[sector.ID.Number])
 				if err != nil {
 					log.Warnw("CheckProvable Sector FAULT: generating vanilla proof", "sector", sector, "sealed", lp.Sealed, "cache", lp.Cache, "err", err)
