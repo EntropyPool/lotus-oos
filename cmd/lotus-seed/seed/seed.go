@@ -192,11 +192,11 @@ func presealSectorFake(sbfs *basicfs.Provider, sid storage.SectorRef, ssize abi.
 	}
 	defer done()
 
-	if err := os.Mkdir(paths.Cache, 0755); err != nil {
+	if err := os.Mkdir(storiface.PathByType(paths, storiface.FTCache), 0755); err != nil {
 		return nil, xerrors.Errorf("mkdir cache: %w", err)
 	}
 
-	commr, err := ffi.FauxRep(sid.ProofType, paths.Cache, paths.Sealed)
+	commr, err := ffi.FauxRep(sid.ProofType, storiface.PathByType(paths, storiface.FTCache), storiface.PathByType(paths, storiface.FTSealed))
 	if err != nil {
 		return nil, xerrors.Errorf("fauxrep: %w", err)
 	}
@@ -216,7 +216,7 @@ func cleanupUnsealed(sbfs *basicfs.Provider, ref storage.SectorRef) error {
 	}
 	defer done()
 
-	return os.Remove(paths.Unsealed)
+	return os.Remove(storiface.PathByType(paths, storiface.FTUnsealed))
 }
 
 func WriteGenesisMiner(maddr address.Address, sbroot string, gm *genesis.Miner, key *types.KeyInfo) error {

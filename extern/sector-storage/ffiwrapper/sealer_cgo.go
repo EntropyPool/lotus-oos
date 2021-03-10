@@ -87,7 +87,7 @@ func (sb *Sealer) AddPiece(ctx context.Context, sector storage.SectorRef, existi
 			return abi.PieceInfo{}, xerrors.Errorf("acquire unsealed sector: %w", err)
 		}
 
-		stagedFile, err = createPartialFile(maxPieceSize, stagedPath.Unsealed)
+		stagedFile, err = createPartialFile(maxPieceSize, storiface.PathByType(stagedPath, storiface.FTUnsealed))
 		if err != nil {
 			return abi.PieceInfo{}, xerrors.Errorf("creating unsealed sector file: %w", err)
 		}
@@ -97,7 +97,7 @@ func (sb *Sealer) AddPiece(ctx context.Context, sector storage.SectorRef, existi
 			return abi.PieceInfo{}, xerrors.Errorf("acquire unsealed sector: %w", err)
 		}
 
-		stagedFile, err = openPartialFile(maxPieceSize, stagedPath.Unsealed)
+		stagedFile, err = openPartialFile(maxPieceSize, storiface.PathByType(stagedPath, storiface.FTUnsealed))
 		if err != nil {
 			return abi.PieceInfo{}, xerrors.Errorf("opening unsealed sector file: %w", err)
 		}
@@ -254,7 +254,7 @@ func (sb *Sealer) UnsealPiece(ctx context.Context, sector storage.SectorRef, off
 		}
 		defer done()
 
-		pf, err = createPartialFile(maxPieceSize, unsealedPath.Unsealed)
+		pf, err = createPartialFile(maxPieceSize, storiface.PathByType(unsealedPath, storiface.FTUnsealed))
 		if err != nil {
 			return xerrors.Errorf("create unsealed file: %w", err)
 		}
@@ -262,7 +262,7 @@ func (sb *Sealer) UnsealPiece(ctx context.Context, sector storage.SectorRef, off
 	case err == nil:
 		defer done()
 
-		pf, err = openPartialFile(maxPieceSize, unsealedPath.Unsealed)
+		pf, err = openPartialFile(maxPieceSize, storiface.PathByType(unsealedPath, storiface.FTUnsealed))
 		if err != nil {
 			return xerrors.Errorf("opening partial file: %w", err)
 		}
@@ -291,7 +291,7 @@ func (sb *Sealer) UnsealPiece(ctx context.Context, sector storage.SectorRef, off
 	}
 	defer srcDone()
 
-	sealed, err := os.OpenFile(srcPaths.Sealed, os.O_RDONLY, 0644) // nolint:gosec
+	sealed, err := os.OpenFile(storiface.PathByType(srcPaths, storiface.FTSealed), os.O_RDONLY, 0644) // nolint:gosec
 	if err != nil {
 		return xerrors.Errorf("opening sealed file: %w", err)
 	}
@@ -363,7 +363,7 @@ func (sb *Sealer) UnsealPiece(ctx context.Context, sector storage.SectorRef, off
 
 		// TODO: This may be possible to do in parallel
 		err = ffi.UnsealRange(sector.ProofType,
-			srcPaths.Cache,
+			storiface.PathByType(srcPaths, storiface.FTCache),
 			sealed,
 			opw,
 			sector.ID.Number,
@@ -414,7 +414,7 @@ func (sb *Sealer) ReadPiece(ctx context.Context, writer io.Writer, sector storag
 	}
 	maxPieceSize := abi.PaddedPieceSize(ssize)
 
-	pf, err := openPartialFile(maxPieceSize, path.Unsealed)
+	pf, err := openPartialFile(maxPieceSize, storiface.PathByType(path, storiface.FTUnsealed))
 	if err != nil {
 		if xerrors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -464,7 +464,7 @@ func (sb *Sealer) SealPreCommit1(ctx context.Context, sector storage.SectorRef, 
 	}
 	defer done()
 
-	e, err := os.OpenFile(paths.Sealed, os.O_RDWR|os.O_CREATE, 0644) // nolint:gosec
+	e, err := os.OpenFile(storiface.PathByType(paths, storiface.FTSealed), os.O_RDWR|os.O_CREATE, 0644) // nolint:gosec
 	if err != nil {
 		return nil, xerrors.Errorf("ensuring sealed file exists: %w", err)
 	}
@@ -472,15 +472,15 @@ func (sb *Sealer) SealPreCommit1(ctx context.Context, sector storage.SectorRef, 
 		return nil, err
 	}
 
-	if err := os.Mkdir(paths.Cache, 0755); err != nil { // nolint
+	if err := os.Mkdir(storiface.PathByType(paths, storiface.FTCache), 0755); err != nil { // nolint
 		if os.IsExist(err) {
 			log.Warnf("existing cache in %s; removing", paths.Cache)
 
-			if err := os.RemoveAll(paths.Cache); err != nil {
-				return nil, xerrors.Errorf("remove existing sector cache from %s (sector %d): %w", paths.Cache, sector, err)
+			if err := os.RemoveAll(storiface.PathByType(paths, storiface.FTCache)); err != nil {
+				return nil, xerrors.Errorf("remove existing sector cache from %s (sector %d): %w", storiface.PathByType(paths, storiface.FTCache), sector, err)
 			}
 
-			if err := os.Mkdir(paths.Cache, 0755); err != nil { // nolint:gosec
+			if err := os.Mkdir(storiface.PathByType(paths, storiface.FTCache), 0755); err != nil { // nolint:gosec
 				return nil, xerrors.Errorf("mkdir cache path after cleanup: %w", err)
 			}
 		} else {
@@ -504,16 +504,16 @@ func (sb *Sealer) SealPreCommit1(ctx context.Context, sector storage.SectorRef, 
 	// TODO: context cancellation respect
 	p1o, err := ffi.SealPreCommitPhase1(
 		sector.ProofType,
-		paths.Cache,
-		paths.Unsealed,
-		paths.Sealed,
+		storiface.PathByType(paths, storiface.FTCache),
+		storiface.PathByType(paths, storiface.FTUnsealed),
+		storiface.PathByType(paths, storiface.FTSealed),
 		sector.ID.Number,
 		sector.ID.Miner,
 		ticket,
 		pieces,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf("presealing sector %d (%s): %w", sector.ID.Number, paths.Unsealed, err)
+		return nil, xerrors.Errorf("presealing sector %d (%s): %w", sector.ID.Number, storiface.PathByType(paths, storiface.FTUnsealed), err)
 	}
 	return p1o, nil
 }
@@ -525,9 +525,9 @@ func (sb *Sealer) SealPreCommit2(ctx context.Context, sector storage.SectorRef, 
 	}
 	defer done()
 
-	sealedCID, unsealedCID, err := ffi.SealPreCommitPhase2(phase1Out, paths.Cache, paths.Sealed)
+	sealedCID, unsealedCID, err := ffi.SealPreCommitPhase2(phase1Out, storiface.PathByType(paths, storiface.FTCache), storiface.PathByType(paths, storiface.FTSealed))
 	if err != nil {
-		return storage.SectorCids{}, xerrors.Errorf("presealing sector %d (%s): %w", sector.ID.Number, paths.Unsealed, err)
+		return storage.SectorCids{}, xerrors.Errorf("presealing sector %d (%s): %w", sector.ID.Number, storiface.PathByType(paths, storiface.FTUnsealed), err)
 	}
 
 	return storage.SectorCids{
@@ -546,8 +546,8 @@ func (sb *Sealer) SealCommit1(ctx context.Context, sector storage.SectorRef, tic
 		sector.ProofType,
 		cids.Sealed,
 		cids.Unsealed,
-		paths.Cache,
-		paths.Sealed,
+		storiface.PathByType(paths, storiface.FTCache),
+		storiface.PathByType(paths, storiface.FTSealed),
 		sector.ID.Number,
 		sector.ID.Miner,
 		ticket,
@@ -598,7 +598,7 @@ func (sb *Sealer) FinalizeSector(ctx context.Context, sector storage.SectorRef, 
 		}
 		defer done()
 
-		pf, err := openPartialFile(maxPieceSize, paths.Unsealed)
+		pf, err := openPartialFile(maxPieceSize, storiface.PathByType(paths, storiface.FTUnsealed))
 		if err == nil {
 			var at uint64
 			for sr.HasNext() {
@@ -638,7 +638,7 @@ func (sb *Sealer) FinalizeSector(ctx context.Context, sector storage.SectorRef, 
 	}
 	defer done()
 
-	return ffi.ClearCache(uint64(ssize), paths.Cache)
+	return ffi.ClearCache(uint64(ssize), storiface.PathByType(paths, storiface.FTCache))
 }
 
 func (sb *Sealer) ReleaseUnsealed(ctx context.Context, sector storage.SectorRef, safeToFree []storage.Range) error {

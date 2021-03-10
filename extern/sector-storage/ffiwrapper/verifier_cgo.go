@@ -95,9 +95,9 @@ func (sb *Sealer) pubSectorToPriv(ctx context.Context, mid abi.ActorID, sectorIn
 		}
 
 		out = append(out, ffi.PrivateSectorInfo{
-			CacheDirPath:     paths.Cache,
+			CacheDirPath:     storiface.PathByType(paths, storiface.FTCache),
 			PoStProofType:    postProofType,
-			SealedSectorPath: paths.Sealed,
+			SealedSectorPath: storiface.PathByType(paths, storiface.FTSealed),
 			SectorInfo:       s,
 		})
 	}

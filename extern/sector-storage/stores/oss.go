@@ -212,5 +212,14 @@ func (oss *OSSClient) UploadObject(prefix string, objName string, path string) e
 	if err != nil {
 		return err
 	}
+
+	err = oss.s3Client.WaitUntilObjectExists(&s3.HeadObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

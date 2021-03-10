@@ -83,12 +83,18 @@ func (t SectorFileType) All() [FileTypes]bool {
 	return out
 }
 
+type SectorPath struct {
+	Path    string
+	Oss     bool
+	Private interface{}
+}
+
 type SectorPaths struct {
 	ID abi.SectorID
 
-	Unsealed string
-	Sealed   string
-	Cache    string
+	Unsealed SectorPath
+	Sealed   SectorPath
+	Cache    SectorPath
 }
 
 func ParseSectorID(baseName string) (abi.SectorID, error) {
@@ -116,6 +122,30 @@ func SectorName(sid abi.SectorID) string {
 func PathByType(sps SectorPaths, fileType SectorFileType) string {
 	switch fileType {
 	case FTUnsealed:
+		return sps.Unsealed.Path
+	case FTSealed:
+		return sps.Sealed.Path
+	case FTCache:
+		return sps.Cache.Path
+	}
+
+	panic("requested unknown path type")
+}
+
+func SetPathByType(sps *SectorPaths, fileType SectorFileType, p string) {
+	switch fileType {
+	case FTUnsealed:
+		sps.Unsealed.Path = p
+	case FTSealed:
+		sps.Sealed.Path = p
+	case FTCache:
+		sps.Cache.Path = p
+	}
+}
+
+func PathExtByType(sps *SectorPaths, fileType SectorFileType) SectorPath {
+	switch fileType {
+	case FTUnsealed:
 		return sps.Unsealed
 	case FTSealed:
 		return sps.Sealed
@@ -126,13 +156,16 @@ func PathByType(sps SectorPaths, fileType SectorFileType) string {
 	panic("requested unknown path type")
 }
 
-func SetPathByType(sps *SectorPaths, fileType SectorFileType, p string) {
+func SetPathExtByType(sps *SectorPaths, fileType SectorFileType, oss bool, priv interface{}) {
 	switch fileType {
 	case FTUnsealed:
-		sps.Unsealed = p
+		sps.Unsealed.Oss = oss
+		sps.Unsealed.Private = priv
 	case FTSealed:
-		sps.Sealed = p
+		sps.Sealed.Oss = oss
+		sps.Sealed.Private = priv
 	case FTCache:
-		sps.Cache = p
+		sps.Cache.Oss = oss
+		sps.Cache.Private = priv
 	}
 }

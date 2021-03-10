@@ -479,8 +479,11 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 			}
 
 			spath := p.sectorPath(sid.ID, fileType)
+
 			storiface.SetPathByType(&out, fileType, spath)
 			storiface.SetPathByType(&storageIDs, fileType, string(info.ID))
+			storiface.SetPathExtByType(&out, fileType, p.oss, p.ossClient)
+			storiface.SetPathExtByType(&storageIDs, fileType, p.oss, p.ossClient)
 
 			existing ^= fileType
 			break
@@ -499,6 +502,7 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 
 		var best string
 		var bestID ID
+		var bestPath *path
 
 		for _, si := range sis {
 			p, ok := st.paths[si.ID]
@@ -522,6 +526,8 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 
 			best = p.sectorPath(sid.ID, fileType)
 			bestID = si.ID
+			bestPath = p
+
 			break
 		}
 
@@ -531,6 +537,9 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 
 		storiface.SetPathByType(&out, fileType, best)
 		storiface.SetPathByType(&storageIDs, fileType, string(bestID))
+		storiface.SetPathExtByType(&storageIDs, fileType, bestPath.oss, bestPath.ossClient)
+		storiface.SetPathExtByType(&out, fileType, bestPath.oss, bestPath.ossClient)
+
 		allocate ^= fileType
 	}
 
