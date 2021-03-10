@@ -662,7 +662,7 @@ func runSeals(sb *ffiwrapper.Sealer, sbfs *basicfs.Provider, numSectors int, par
 							}
 							done()
 
-							if err := os.Remove(p.Unsealed); err != nil {
+							if err := os.Remove(storiface.PathByType(p, storiface.FTUnsealed)); err != nil {
 								return xerrors.Errorf("removing unsealed sector: %w", err)
 							}
 						}
