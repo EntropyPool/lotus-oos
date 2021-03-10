@@ -482,8 +482,23 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 
 			storiface.SetPathByType(&out, fileType, spath)
 			storiface.SetPathByType(&storageIDs, fileType, string(info.ID))
-			storiface.SetPathExtByType(&out, fileType, p.oss, p.ossClient)
-			storiface.SetPathExtByType(&storageIDs, fileType, p.oss, p.ossClient)
+
+			ossInfo := storiface.SectorOSSInfo{}
+
+			if p.oss {
+				bucketName, err := p.ossClient.BucketNameByPrefix(fileType.String())
+				if err != nil {
+					return storiface.SectorPaths{}, storiface.SectorPaths{}, err
+				}
+				ossInfo.BucketName = bucketName
+				ossInfo.URL = p.ossInfo.URL
+				ossInfo.AccessKey = p.ossInfo.AccessKey
+				ossInfo.SecretKey = p.ossInfo.SecretKey
+				ossInfo.LandedDir = p.local
+			}
+
+			storiface.SetPathExtByType(&out, fileType, p.oss, p.ossClient, ossInfo)
+			storiface.SetPathExtByType(&storageIDs, fileType, p.oss, p.ossClient, ossInfo)
 
 			existing ^= fileType
 			break
@@ -537,8 +552,23 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 
 		storiface.SetPathByType(&out, fileType, best)
 		storiface.SetPathByType(&storageIDs, fileType, string(bestID))
-		storiface.SetPathExtByType(&storageIDs, fileType, bestPath.oss, bestPath.ossClient)
-		storiface.SetPathExtByType(&out, fileType, bestPath.oss, bestPath.ossClient)
+
+		ossInfo := storiface.SectorOSSInfo{}
+
+		if bestPath.oss {
+			bucketName, err := bestPath.ossClient.BucketNameByPrefix(fileType.String())
+			if err != nil {
+				return storiface.SectorPaths{}, storiface.SectorPaths{}, err
+			}
+			ossInfo.BucketName = bucketName
+			ossInfo.URL = bestPath.ossInfo.URL
+			ossInfo.AccessKey = bestPath.ossInfo.AccessKey
+			ossInfo.SecretKey = bestPath.ossInfo.SecretKey
+			ossInfo.LandedDir = bestPath.local
+		}
+
+		storiface.SetPathExtByType(&storageIDs, fileType, bestPath.oss, bestPath.ossClient, ossInfo)
+		storiface.SetPathExtByType(&out, fileType, bestPath.oss, bestPath.ossClient, ossInfo)
 
 		allocate ^= fileType
 	}

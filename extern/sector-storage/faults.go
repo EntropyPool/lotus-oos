@@ -145,8 +145,10 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 						SealedCID:    commr,
 					},
 					CacheDirPath:     storiface.PathByType(lp, storiface.FTCache),
+					CacheInOss:       cacheSectorPath.Oss,
 					PoStProofType:    wpp,
 					SealedSectorPath: storiface.PathByType(lp, storiface.FTSealed),
+					SealedInOss:      sealedSectorPath.Oss,
 				}, ch.Challenges[sector.ID.Number])
 				if err != nil {
 					log.Warnw("CheckProvable Sector FAULT: generating vanilla proof", "sector", sector, "sealed", lp.Sealed, "cache", lp.Cache, "err", err)

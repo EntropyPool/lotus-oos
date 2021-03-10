@@ -142,7 +142,7 @@ func (oss *OSSClient) createBucket(bucketName string) error {
 	return nil
 }
 
-func (oss *OSSClient) bucketNameByPrefix(prefix string) (string, error) {
+func (oss *OSSClient) BucketNameByPrefix(prefix string) (string, error) {
 	switch prefix {
 	case "cache":
 		return oss.proofBucket, nil
@@ -155,7 +155,7 @@ func (oss *OSSClient) bucketNameByPrefix(prefix string) (string, error) {
 }
 
 func (oss *OSSClient) ListSectors(prefix string) ([]OSSSector, error) {
-	bucketName, err := oss.bucketNameByPrefix(prefix)
+	bucketName, err := oss.BucketNameByPrefix(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (oss *OSSClient) UploadObject(prefix string, objName string, path string) e
 	}
 	defer file.Close()
 
-	bucketName, err := oss.bucketNameByPrefix(prefix)
+	bucketName, err := oss.BucketNameByPrefix(prefix)
 	if err != nil {
 		return err
 	}

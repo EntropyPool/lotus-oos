@@ -83,10 +83,19 @@ func (t SectorFileType) All() [FileTypes]bool {
 	return out
 }
 
+type SectorOSSInfo struct {
+	URL        string
+	LandedDir  string
+	AccessKey  string
+	SecretKey  string
+	BucketName string
+}
+
 type SectorPath struct {
 	Path    string
 	Oss     bool
 	Private interface{}
+	OssInfo SectorOSSInfo
 }
 
 type SectorPaths struct {
@@ -156,16 +165,19 @@ func PathExtByType(sps *SectorPaths, fileType SectorFileType) SectorPath {
 	panic("requested unknown path type")
 }
 
-func SetPathExtByType(sps *SectorPaths, fileType SectorFileType, oss bool, priv interface{}) {
+func SetPathExtByType(sps *SectorPaths, fileType SectorFileType, oss bool, priv interface{}, ossInfo SectorOSSInfo) {
 	switch fileType {
 	case FTUnsealed:
 		sps.Unsealed.Oss = oss
 		sps.Unsealed.Private = priv
+		sps.Unsealed.OssInfo = ossInfo
 	case FTSealed:
 		sps.Sealed.Oss = oss
 		sps.Sealed.Private = priv
+		sps.Sealed.OssInfo = ossInfo
 	case FTCache:
 		sps.Cache.Oss = oss
 		sps.Cache.Private = priv
+		sps.Cache.OssInfo = ossInfo
 	}
 }
