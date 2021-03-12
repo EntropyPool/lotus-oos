@@ -594,6 +594,14 @@ func (sm *StorageMinerAPI) DealsSetPieceCidBlocklist(ctx context.Context, cids [
 	return sm.SetStorageDealPieceCidBlocklistConfigFunc(cids)
 }
 
+func (sm *StorageMinerAPI) StorageUpdateLocal(ctx context.Context, path string) error {
+	if sm.StorageMgr == nil {
+		return xerrors.Errorf("no storage manager")
+	}
+
+	return sm.StorageMgr.UpdateLocalStorage(ctx, path)
+}
+
 func (sm *StorageMinerAPI) StorageAddLocal(ctx context.Context, path string) error {
 	if sm.StorageMgr == nil {
 		return xerrors.Errorf("no storage manager")

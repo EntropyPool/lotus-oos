@@ -153,6 +153,57 @@ func NewLocal(ctx context.Context, ls LocalStorage, index SectorIndex, urls []st
 	return l, l.open(ctx)
 }
 
+func (st *Local) UpdatePath(ctx context.Context, p string) error {
+	st.localLk.Lock()
+	defer st.localLk.Unlock()
+
+	mb, err := ioutil.ReadFile(filepath.Join(p, MetaFile))
+	if err != nil {
+		return xerrors.Errorf("reading storage metadata for %s: %w", p, err)
+	}
+
+	var meta LocalStorageMeta
+	if err := json.Unmarshal(mb, &meta); err != nil {
+		return xerrors.Errorf("unmarshalling storage metadata for %s: %w", p, err)
+	}
+
+	oldPath, ok := st.paths[meta.ID]
+	if !ok {
+		return xerrors.Errorf("cannot find storage %v", meta.ID)
+	}
+
+	newPath := &path{
+		local:        p,
+		reserved:     oldPath.reserved,
+		reservations: oldPath.reservations,
+		oss:          meta.Oss,
+		ossInfo:      meta.OssInfo,
+		ossClient:    oldPath.ossClient,
+	}
+
+	fst, err := newPath.stat(st.localStorage)
+	if err != nil {
+		return err
+	}
+
+	err = st.index.StorageAttach(ctx, StorageInfo{
+		ID:       meta.ID,
+		URLs:     st.urls,
+		Weight:   meta.Weight,
+		CanSeal:  meta.CanSeal,
+		CanStore: meta.CanStore,
+		Oss:      meta.Oss,
+		OssInfo:  meta.OssInfo,
+	}, fst)
+	if err != nil {
+		return xerrors.Errorf("update storage in index: %w", err)
+	}
+
+	st.paths[meta.ID] = newPath
+
+	return nil
+}
+
 func (st *Local) OpenPath(ctx context.Context, p string) error {
 	st.localLk.Lock()
 	defer st.localLk.Unlock()

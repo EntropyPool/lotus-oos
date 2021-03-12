@@ -131,6 +131,7 @@ type StorageMiner interface {
 	DealsSetConsiderUnverifiedStorageDeals(context.Context, bool) error
 
 	StorageAddLocal(ctx context.Context, path string) error
+	StorageUpdateLocal(ctx context.Context, path string) error
 
 	PiecesListPieces(ctx context.Context) ([]cid.Cid, error)
 	PiecesListCidInfos(ctx context.Context) ([]cid.Cid, error)

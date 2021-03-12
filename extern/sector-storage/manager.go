@@ -169,6 +169,19 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, sc 
 	return m, nil
 }
 
+func (m *Manager) UpdateLocalStorage(ctx context.Context, path string) error {
+	path, err := homedir.Expand(path)
+	if err != nil {
+		return xerrors.Errorf("expanding local path: %w", err)
+	}
+
+	if err := m.localStore.UpdatePath(ctx, path); err != nil {
+		return xerrors.Errorf("opening local path: %w", err)
+	}
+
+	return nil
+}
+
 func (m *Manager) AddLocalStorage(ctx context.Context, path string) error {
 	path, err := homedir.Expand(path)
 	if err != nil {

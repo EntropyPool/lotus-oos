@@ -372,7 +372,8 @@ type StorageMinerStruct struct {
 		DealsPieceCidBlocklist                 func(context.Context) ([]cid.Cid, error)                          `perm:"read"`
 		DealsSetPieceCidBlocklist              func(context.Context, []cid.Cid) error                            `perm:"admin"`
 
-		StorageAddLocal func(ctx context.Context, path string) error `perm:"admin"`
+		StorageAddLocal    func(ctx context.Context, path string) error `perm:"admin"`
+		StorageUpdateLocal func(ctx context.Context, path string) error `perm:"admin"`
 
 		PiecesListPieces   func(ctx context.Context) ([]cid.Cid, error)                               `perm:"read"`
 		PiecesListCidInfos func(ctx context.Context) ([]cid.Cid, error)                               `perm:"read"`
@@ -1578,6 +1579,10 @@ func (c *StorageMinerStruct) DealsConsiderUnverifiedStorageDeals(ctx context.Con
 
 func (c *StorageMinerStruct) DealsSetConsiderUnverifiedStorageDeals(ctx context.Context, b bool) error {
 	return c.Internal.DealsSetConsiderUnverifiedStorageDeals(ctx, b)
+}
+
+func (c *StorageMinerStruct) StorageUpdateLocal(ctx context.Context, path string) error {
+	return c.Internal.StorageUpdateLocal(ctx, path)
 }
 
 func (c *StorageMinerStruct) StorageAddLocal(ctx context.Context, path string) error {

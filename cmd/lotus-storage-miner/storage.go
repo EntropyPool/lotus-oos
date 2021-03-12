@@ -715,3 +715,64 @@ func cleanupRemovedSectorData(ctx context.Context, api api.StorageMiner, napi ap
 
 	return nil
 }
+
+var storageAdjustCmd = &cli.Command{
+	Name:  "adjust",
+	Usage: "adjust storage attribute at runtime",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "store",
+			Usage: "set storage to store data or not",
+			Value: true,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		nodeApi, closer, err := lcli.GetStorageMinerAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+		ctx := lcli.ReqContext(cctx)
+
+		if !cctx.Args().Present() {
+			return xerrors.Errorf("must specify storage path to attach")
+		}
+
+		p, err := homedir.Expand(cctx.Args().First())
+		if err != nil {
+			return xerrors.Errorf("expanding path: %w", err)
+		}
+
+		myMetaFile := filepath.Join(p, metaFile)
+		_, err = os.Stat(myMetaFile)
+		if os.IsNotExist(err) || err != nil {
+			return xerrors.Errorf("path is not initialized")
+		}
+
+		buf, err := ioutil.ReadFile(myMetaFile)
+		if err != nil {
+			return xerrors.Errorf("cannot read meta file")
+		}
+
+		cfg := stores.LocalStorageMeta{}
+		err = json.Unmarshal(buf, &cfg)
+		if err != nil {
+			return xerrors.Errorf("cannot unmarshal meta to struct")
+		}
+
+		canStore := cctx.Bool("store")
+		cfg.CanStore = canStore
+		cfg.OssInfo.CanWrite = canStore
+
+		b, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return xerrors.Errorf("marshaling storage config: %w", err)
+		}
+
+		if err := ioutil.WriteFile(myMetaFile, b, 0644); err != nil {
+			return xerrors.Errorf("persisting storage metadata (%s): %w", filepath.Join(p, metaFile), err)
+		}
+
+		return nodeApi.StorageUpdateLocal(ctx, p)
+	},
+}
