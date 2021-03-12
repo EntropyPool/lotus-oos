@@ -57,8 +57,8 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 
 			sealedPath := storiface.PathByType(lp, storiface.FTSealed)
 			cachePath := storiface.PathByType(lp, storiface.FTCache)
-			sealedSectorPath := storiface.PathExtByType(&lp, storiface.FTSealed)
-			cacheSectorPath := storiface.PathExtByType(&lp, storiface.FTCache)
+			sealedSectorPath := storiface.PathExtByType(lp, storiface.FTSealed)
+			cacheSectorPath := storiface.PathExtByType(lp, storiface.FTCache)
 
 			if sealedPath == "" || cachePath == "" {
 				log.Warnw("CheckProvable Sector FAULT: cache and/or sealed paths not found", "sector", sector, "sealed", sealedPath, "cache", cachePath)

@@ -153,7 +153,7 @@ func SetPathByType(sps *SectorPaths, fileType SectorFileType, p string) {
 	}
 }
 
-func PathExtByType(sps *SectorPaths, fileType SectorFileType) SectorPath {
+func PathExtByType(sps SectorPaths, fileType SectorFileType) SectorPath {
 	switch fileType {
 	case FTUnsealed:
 		return sps.Unsealed

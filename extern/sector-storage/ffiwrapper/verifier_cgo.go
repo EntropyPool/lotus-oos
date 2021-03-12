@@ -88,6 +88,30 @@ func (sb *Sealer) pubSectorToPriv(ctx context.Context, mid abi.ActorID, sectorIn
 		}
 		doneFuncs = append(doneFuncs, d)
 
+		sealedSectorPath := storiface.PathExtByType(paths, storiface.FTSealed)
+		sealedSectorPathInfo := ffi.PrivateSectorPathInfo{}
+
+		if sealedSectorPath.Oss {
+			sealedSectorPathInfo.Url = sealedSectorPath.OssInfo.URL
+			sealedSectorPathInfo.AccessKey = sealedSectorPath.OssInfo.AccessKey
+			sealedSectorPathInfo.SecretKey = sealedSectorPath.OssInfo.SecretKey
+			sealedSectorPathInfo.LandedDir = sealedSectorPath.OssInfo.LandedDir
+			sealedSectorPathInfo.BucketName = sealedSectorPath.OssInfo.BucketName
+			sealedSectorPathInfo.SectorName = sealedSectorPath.OssInfo.SectorName
+		}
+
+		cacheSectorPath := storiface.PathExtByType(paths, storiface.FTCache)
+		cacheSectorPathInfo := ffi.PrivateSectorPathInfo{}
+
+		if cacheSectorPath.Oss {
+			cacheSectorPathInfo.Url = cacheSectorPath.OssInfo.URL
+			cacheSectorPathInfo.AccessKey = cacheSectorPath.OssInfo.AccessKey
+			cacheSectorPathInfo.SecretKey = cacheSectorPath.OssInfo.SecretKey
+			cacheSectorPathInfo.LandedDir = cacheSectorPath.OssInfo.LandedDir
+			cacheSectorPathInfo.BucketName = cacheSectorPath.OssInfo.BucketName
+			cacheSectorPathInfo.SectorName = cacheSectorPath.OssInfo.SectorName
+		}
+
 		postProofType, err := rpt(s.SealProof)
 		if err != nil {
 			done()
@@ -95,10 +119,14 @@ func (sb *Sealer) pubSectorToPriv(ctx context.Context, mid abi.ActorID, sectorIn
 		}
 
 		out = append(out, ffi.PrivateSectorInfo{
-			CacheDirPath:     storiface.PathByType(paths, storiface.FTCache),
-			PoStProofType:    postProofType,
-			SealedSectorPath: storiface.PathByType(paths, storiface.FTSealed),
-			SectorInfo:       s,
+			CacheDirPath:         storiface.PathByType(paths, storiface.FTCache),
+			CacheInOss:           cacheSectorPath.Oss,
+			CacheSectorPathInfo:  cacheSectorPathInfo,
+			PoStProofType:        postProofType,
+			SealedSectorPath:     storiface.PathByType(paths, storiface.FTSealed),
+			SealedInOss:          sealedSectorPath.Oss,
+			SealedSectorPathInfo: sealedSectorPathInfo,
+			SectorInfo:           s,
 		})
 	}
 
