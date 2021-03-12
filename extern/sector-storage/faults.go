@@ -71,13 +71,19 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 			type ossCheck struct {
 				sectorPath  storiface.SectorPath
 				sectorFiles []string
+				checkSize   bool
+				fileType    storiface.SectorFileType
 			}
 			ossToCheck := []ossCheck{}
 
 			sealedSectorPathInfo := ffi.PrivateSectorPathInfo{}
 
 			if sealedSectorPath.Oss {
-				ossToCheck = append(ossToCheck, ossCheck{sectorPath: sealedSectorPath})
+				ossToCheck = append(ossToCheck, ossCheck{
+					sectorPath: sealedSectorPath,
+					checkSize:  true,
+					fileType:   storiface.FTSealed,
+				})
 				sealedSectorPathInfo.Url = sealedSectorPath.OssInfo.URL
 				sealedSectorPathInfo.AccessKey = sealedSectorPath.OssInfo.AccessKey
 				sealedSectorPathInfo.SecretKey = sealedSectorPath.OssInfo.SecretKey
@@ -94,6 +100,8 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 				ossToCheck = append(ossToCheck, ossCheck{
 					sectorPath:  cacheSectorPath,
 					sectorFiles: getCacheFilesForSectorSize(cachePath, ssize),
+					checkSize:   false,
+					fileType:    storiface.FTCache,
 				})
 				cacheSectorPathInfo.Url = cacheSectorPath.OssInfo.URL
 				cacheSectorPathInfo.AccessKey = cacheSectorPath.OssInfo.AccessKey
@@ -125,7 +133,11 @@ func (m *Manager) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof,
 			}
 
 			for _, check := range ossToCheck {
-				log.Warnw("CheckProvable Sector WARN: oss not checked", "sector", sector, "sealed", sealedPath, "cache", cachePath, "files", check.sectorFiles)
+				if err = m.localStore.CheckSectorInOss(ctx, check.sectorPath, check.sectorFiles, check.fileType, ssize, check.checkSize); err != nil {
+					log.Warnw("CheckProvable Sector FAULT: oss check error", "sector", sector, "sealed", sealedPath, "cache", cachePath, "files", check.sectorFiles)
+					bad[sector.ID] = fmt.Sprintf("%s is wrong in oss (%v)", check.sectorPath.OssInfo.SectorName, err)
+					return nil
+				}
 			}
 
 			if rg != nil {

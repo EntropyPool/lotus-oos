@@ -223,3 +223,26 @@ func (oss *OSSClient) UploadObject(prefix string, objName string, path string) e
 
 	return nil
 }
+
+func (oss *OSSClient) HeadObject(prefix string, objName string) (int64, error) {
+	bucketName, err := oss.BucketNameByPrefix(prefix)
+	if err != nil {
+		return 0, err
+	}
+
+	key := fmt.Sprintf("%v%v%v", prefix, ossKeySeparator, objName)
+
+	head, err := oss.s3Client.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	if head.ContentLength == nil {
+		return 0, xerrors.Errorf("content length is not available for %v", key)
+	}
+
+	return *head.ContentLength, nil
+}

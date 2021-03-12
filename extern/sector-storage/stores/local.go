@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -780,6 +781,40 @@ func (st *Local) FsStat(ctx context.Context, id ID) (fsutil.FsStat, error) {
 	}
 
 	return p.stat(st.localStorage)
+}
+
+func (st *Local) CheckSectorInOss(ctx context.Context, p storiface.SectorPath, files []string, ft storiface.SectorFileType, ssize abi.SectorSize, checkSize bool) error {
+	ossCli := p.Private.(*OSSClient)
+	prefix := ft.String()
+
+	if 0 < len(files) {
+		for _, file := range files {
+			objName := strings.TrimPrefix(file, p.OssInfo.LandedDir)
+			objName = strings.TrimPrefix(objName, "/")
+			objName = strings.TrimPrefix(objName, prefix)
+			size, err := ossCli.HeadObject(prefix, objName)
+			if err != nil {
+				return xerrors.Errorf("fail to query object %v in oss (%v)", objName, err)
+			}
+			if !checkSize && size <= 0 {
+				return xerrors.Errorf("%s's size is invalid (%v)", objName, size)
+			}
+		}
+	} else {
+		objName := p.OssInfo.SectorName
+		size, err := ossCli.HeadObject(prefix, objName)
+		if err != nil {
+			return xerrors.Errorf("fail to query object %v in oss (%v)", objName, err)
+		}
+		if !checkSize && size <= 0 {
+			return xerrors.Errorf("%s's size is invalid (%v)", objName, size)
+		}
+		if checkSize && size != int64(ssize) {
+			return xerrors.Errorf("%s's size is not equal (%v != %v)", objName, size, ssize)
+		}
+	}
+
+	return nil
 }
 
 var _ Store = &Local{}
